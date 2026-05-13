@@ -1,0 +1,179 @@
+
+# RESEARCH PHASE
+Before writing any code, research and document the following:
+
+1. Best libraries for PDF rendering in Next.js (compare react-pdf, pdf.js via pdfjs-dist, react-pdf-viewer) — evaluate annotation support, performance on 100+ page docs, and TypeScript compatibility. Choose the optimal one.
+2. Best approach for text-layer selection in PDF.js for enabling highlight, underline, and note anchoring on specific text ranges (using PDF.js TextContent + Range API).
+3. AWS S3 presigned URL flow: research the correct NestJS + @aws-sdk/client-s3 pattern for secure upload from the backend (frontend never holds AWS credentials).
+4. JWT-based multi-user session model: research best pattern for NestJS + NextJS cookie-based auth with refresh tokens.
+5. Research the correct PDF-lib or pdf-lib + jsPDF approach for injecting per-page watermarks (username) during download/print — without modifying the stored original.
+6. Research WebSocket (Socket.IO in NestJS) vs polling for real-time discussion/note sync between users.
+7. Research the best font rendering and signature drawing approach using signature_pad or fabric.js for e-signatures embedded as PDF annotations.
+
+After research, document your findings in a RESEARCH.md file, then proceed to build.
+
+# STACK DECISIONS (enforce these)
+- Frontend: Next.js 14 (App Router), TypeScript, Tailwind CSS
+- Backend: NestJS (TypeScript), Prisma ORM, PostgreSQL
+- Storage: AWS S3 (via backend presigned URLs only — never expose credentials to frontend)
+- PDF Rendering: pdfjs-dist (PDF.js) with custom text layer for annotations
+- Real-time: Socket.IO (NestJS gateway + client)
+- Auth: JWT (access + refresh), httpOnly cookies
+- Signature: signature_pad library
+- Watermark: pdf-lib (server-side injection at download/print time)
+
+# PROJECT STRUCTURE
+Scaffold this monorepo:
+  /apps/frontend   → Next.js app
+  /apps/backend    → NestJS app
+  /packages/types  → Shared TypeScript interfaces (DTOs, enums)
+
+# DATABASE SCHEMA (Prisma)
+Design and implement these models:
+- User { id, name, email, passwordHash, avatarUrl, createdAt }
+- Document { id, name, s3Key, s3Url, mimeType, uploadedById, createdAt }
+- Annotation {
+    id, documentId, userId,
+    type: ENUM(NOTE, DISCUSSION, HIGHLIGHT, UNDERLINE, SIGNATURE),
+    pageNumber, rects: Json (array of {x,y,w,h} for multi-line selections),
+    selectedText: String,
+    color: String,
+    content: String,
+    isPrivate: Boolean (true=NOTE, false=DISCUSSION),
+    createdAt, updatedAt
+  }
+- DiscussionMember { id, annotationId, userId } (for sharing discussions with specific members)
+- DiscussionReply { id, annotationId, userId, content, createdAt }
+
+# BACKEND MODULES (NestJS)
+Build these NestJS modules with full CRUD, guards, and validation:
+
+1. AuthModule: register, login, logout, refresh-token endpoints. Use bcrypt for passwords. Issue JWT in httpOnly cookies.
+2. UsersModule: GET /users (for member picker — return id, name, email, avatarUrl). Seed 8 demo users.
+3. DocumentsModule:
+   - POST /documents/upload → accept multipart/form-data (PDF, TXT, PPTX), convert TXT/PPTX to PDF server-side using libreoffice-convert or pdf-lib, upload to S3, save metadata to DB.
+   - GET /documents → list all documents (name, id, s3Url, mimeType, uploadedBy, createdAt).
+   - GET /documents/:id/download → stream from S3, inject per-page watermark (logged-in username) using pdf-lib before sending response. Set Content-Disposition: attachment.
+   - GET /documents/:id/print → same as download but set Content-Disposition: inline.
+4. AnnotationsModule:
+   - POST /annotations → create note or discussion (with member list for discussion).
+   - GET /annotations/document/:docId → return annotations visible to the current user: all own annotations + discussions where they are a member.
+   - PATCH /annotations/:id → update content or color.
+   - DELETE /annotations/:id → only owner can delete.
+   - POST /annotations/:id/replies → add reply to a discussion.
+   - POST /annotations/:id/share → add members to an existing annotation (convert note to discussion).
+5. AnnotationsGateway (Socket.IO): emit 'annotation:created', 'annotation:updated', 'annotation:deleted', 'reply:created' to relevant room (document room). All connected viewers of a document receive real-time updates for discussions visible to them.
+
+# FRONTEND MODULES (Next.js)
+Build these pages and components:
+
+1. /login and /register pages with form validation.
+2. /dashboard page:
+   - Upload area: drag-and-drop zone accepting PDF, TXT, PPTX. Show progress bar during upload. On success add to document list below.
+   - Document list: card grid showing document name, type badge, uploaded-by, date, and a clickable area to open the viewer.
+3. /viewer/[documentId] page — the main PDF viewer:
+
+   VIEWER LAYOUT:
+   - Left sidebar (collapsible): page thumbnails, numbered.
+   - Center: PDF canvas area rendered with PDF.js.
+   - Right sidebar: tabs for "Notes", "Discussions", "Signatures". Default to Notes tab.
+   - Top toolbar: zoom out, zoom in (show % label), fit-to-width, page input + total pages, download button, print button, pencil/signature mode toggle.
+
+   PDF RENDERING:
+   - Use pdfjs-dist. Render each page as a canvas with a transparent text layer div on top.
+   - Text layer must be precisely aligned to canvas using PDF.js renderTextLayer.
+   - Support zoom: recalculate scale and re-render all pages on zoom change.
+   - Implement virtual scrolling or windowed rendering for large documents (only render visible pages ± 2 buffer pages).
+
+   TEXT SELECTION & ANNOTATION TOOLBAR:
+   - When user selects text in the text layer, calculate the bounding rects of the selection, the page number, and the selected text string.
+   - Show a floating mini-toolbar near the selection with 3 icon-only buttons:
+     * Note icon (ti-notes): opens AddNoteModal
+     * Discussion icon (ti-messages): opens AddDiscussionModal
+     * Highlight/Underline icon (ti-highlight): toggles underline highlight on selection
+   - The toolbar disappears on outside click or Escape.
+
+   AddNoteModal:
+   - Show the selected text (truncated) as context.
+   - Color picker (6 preset colors: yellow, green, blue, pink, red, purple).
+   - Textarea for note content.
+   - Save button → POST /annotations (isPrivate: true). Dismiss modal.
+
+   AddDiscussionModal:
+   - Same as AddNoteModal but also shows a member picker.
+   - Member picker: searchable list of all users (from GET /users), multi-select with checkboxes, show avatar/initials + name. Selected members shown as chips.
+   - Save button → POST /annotations (isPrivate: false, memberIds: [...]).
+
+   ANNOTATION RENDERING IN DOCUMENT:
+   - After loading annotations, for each annotation: draw a highlight rect on the corresponding page canvas at the stored rects coordinates, using the annotation's color (with 40% opacity).
+   - Underline annotations: draw a line at the bottom of each rect instead.
+   - Clicking a highlight in the document: select that annotation in the sidebar (highlight it there).
+
+   RIGHT SIDEBAR — NOTES TAB:
+   - List all user's private notes. Each card shows: color dot, selected text snippet, note content, page number badge, timestamp.
+   - Clicking a note card: smooth-scroll the viewer to that page, briefly pulse-animate the annotation highlight.
+   - Notes are never visible to other users.
+
+   RIGHT SIDEBAR — DISCUSSIONS TAB:
+   - List all discussions visible to the user (own + member-of). Each card shows: selected text snippet, member avatars (initials circles), message count, page badge, timestamp.
+   - Clicking a discussion card: expands inline to show reply thread. Input at bottom to add reply. Replies sync via Socket.IO in real-time.
+
+   RIGHT SIDEBAR — SIGNATURES TAB:
+   - Show a canvas using signature_pad for drawing e-signature.
+   - "Place on page" button: user clicks a position on the current PDF page, the signature image is placed as an overlay div at that position (stored as an SIGNATURE annotation with rects: [{x,y,w,h}] and content: base64 dataURL).
+
+   DOWNLOAD / PRINT:
+   - Download button: calls GET /documents/:id/download → backend injects watermark → file downloads.
+   - Print button: calls GET /documents/:id/print → opens in new tab with watermark.
+   - Never use client-side PDF manipulation for download — always go through backend so watermark is always applied.
+
+# SECURITY REQUIREMENTS
+- All API routes protected by JwtAuthGuard except login/register.
+- Users can only read annotations they own or are a member of (enforce in query layer, not just UI).
+- S3 bucket must be private. Never expose raw S3 URLs directly. Serve documents through the backend (stream from S3).
+- Validate all file types server-side (check magic bytes, not just extension).
+- Sanitize all user text inputs (strip HTML).
+- Rate-limit auth endpoints (5 req/min per IP using @nestjs/throttler).
+
+# UX & DESIGN REQUIREMENTS
+- Use Tailwind CSS for all styling. Color palette: slate grays for UI chrome, indigo for primary actions, amber for highlights.
+- Smooth transitions: sidebar open/close (150ms ease), modal fade-in (100ms), annotation highlight pulse (300ms).
+- When a document is opened again: restore scroll position to last viewed page (store in localStorage keyed by documentId).
+- Skeleton loaders during PDF page render.
+- Toast notifications for: upload success/fail, annotation saved, discussion shared.
+- Fully responsive: viewer sidebar collapses to bottom sheet on mobile.
+- Empty states: friendly messages when no notes or discussions exist yet.
+
+# DEMO DATA & SEED
+Create a seed script (prisma/seed.ts) that:
+- Creates 8 demo users with realistic names, emails, and avatarUrls (use ui-avatars.com).
+- Uploads 2 sample PDF documents to S3 from local /seed-assets folder.
+- Creates sample annotations on those documents across multiple users.
+
+# DOCKER & ENV
+- Provide docker-compose.yml: postgres, backend (NestJS), frontend (Next.js).
+- Provide .env.example for both apps with all required vars:
+  Backend: DATABASE_URL, JWT_SECRET, JWT_REFRESH_SECRET, AWS_REGION, AWS_BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, PORT
+  Frontend: NEXT_PUBLIC_API_URL, NEXT_PUBLIC_WS_URL
+
+# DELIVERABLES CHECKLIST
+After building, verify each item works end-to-end:
+[ ] Upload PDF → appears in document list
+[ ] Upload TXT and PPTX → converted to PDF, appears in list
+[ ] Open document → renders correctly at page 1
+[ ] Zoom in/out → pages re-render at correct scale
+[ ] Paginate → jump to specific page
+[ ] Select text → mini-toolbar appears
+[ ] Add note → appears in Notes sidebar, text highlighted in doc
+[ ] Add discussion with members → appears in Discussions sidebar for all members
+[ ] Reply to discussion → real-time sync for all members in same viewer
+[ ] Click note/discussion → doc scrolls to correct page and highlights
+[ ] Download → watermark with username visible on every page
+[ ] Print → watermark visible
+[ ] E-signature → placed on page as overlay, saved, persists on reload
+[ ] Highlights/underlines persist on document reload
+[ ] Logout → all protected routes redirect to login
+
+# START COMMAND
+Begin with: write RESEARCH.md → scaffold monorepo → implement backend → implement frontend → write seed → write docker-compose → run full checklist.
+  

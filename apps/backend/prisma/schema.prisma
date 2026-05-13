@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  avatarUrl    String?
+  refreshToken String?
+  createdAt    DateTime @default(now())
+
+  documents         Document[]
+  annotations       Annotation[]
+  discussionMembers DiscussionMember[]
+  replies           DiscussionReply[]
+}
+
+model Document {
+  id           String   @id @default(cuid())
+  name         String
+  s3Key        String   @unique
+  s3Url        String
+  mimeType     String
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  uploadedBy  User         @relation(fields: [uploadedById], references: [id])
+  annotations Annotation[]
+}
+
+enum AnnotationType {
+  NOTE
+  DISCUSSION
+  HIGHLIGHT
+  UNDERLINE
+  SIGNATURE
+}
+
+model Annotation {
+  id           String         @id @default(cuid())
+  documentId   String
+  userId       String
+  type         AnnotationType
+  pageNumber   Int
+  rects        Json
+  selectedText String         @default("")
+  color        String         @default("#FFD700")
+  content      String         @default("")
+  isPrivate    Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  document Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User               @relation(fields: [userId], references: [id])
+  members  DiscussionMember[]
+  replies  DiscussionReply[]
+}
+
+model DiscussionMember {
+  id           String @id @default(cuid())
+  annotationId String
+  userId       String
+
+  annotation Annotation @relation(fields: [annotationId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@unique([annotationId, userId])
+}
+
+model DiscussionReply {
+  id           String   @id @default(cuid())
+  annotationId String
+  userId       String
+  content      String
+  createdAt    DateTime @default(now())
+
+  annotation Annotation @relation(fields: [annotationId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id])
+}
