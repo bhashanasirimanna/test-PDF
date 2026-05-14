@@ -120,7 +120,7 @@ export class AnnotationsService {
 
     return this.prisma.annotation.update({
       where: { id: annotationId },
-      data: { isPrivate: false },
+      data: { isPrivate: false, type: AnnotationType.DISCUSSION },
       include: {
         user: { select: userSelect },
         members: { include: { user: { select: userSelect } } },

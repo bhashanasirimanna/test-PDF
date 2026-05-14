@@ -5,11 +5,13 @@ import { AnnotationType } from '@prokoti/types';
 import { NotesTab } from './NotesTab';
 import { DiscussionsTab } from './DiscussionsTab';
 import { SignaturesTab } from './SignaturesTab';
+import { CosecAITab } from './CosecAITab';
 
 interface Props {
   annotations: AnnotationDto[];
   userId: string;
   selectedAnnotationId: string | null;
+  documentName?: string;
   onAnnotationSelect: (id: string | null) => void;
   onAnnotationUpdate: (id: string, dto: { content?: string; color?: string }) => Promise<AnnotationDto>;
   onAnnotationDelete: (id: string) => Promise<void>;
@@ -17,10 +19,10 @@ interface Props {
   onShare: (id: string, memberIds: string[]) => Promise<AnnotationDto>;
 }
 
-type Tab = 'notes' | 'discussions' | 'signatures';
+type Tab = 'notes' | 'discussions' | 'signatures' | 'cosec-ai';
 
 export function RightSidebar({
-  annotations, userId, selectedAnnotationId,
+  annotations, userId, selectedAnnotationId, documentName,
   onAnnotationSelect, onAnnotationUpdate, onAnnotationDelete, onReply, onShare,
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('notes');
@@ -29,7 +31,7 @@ export function RightSidebar({
     (a) => a.isPrivate && a.userId === userId && a.type !== AnnotationType.SIGNATURE,
   );
   const discussions = annotations.filter(
-    (a) => !a.isPrivate && a.type === AnnotationType.DISCUSSION,
+    (a) => !a.isPrivate && (a.type === AnnotationType.DISCUSSION || a.type === AnnotationType.NOTE),
   );
   const signatures = annotations.filter((a) => a.type === AnnotationType.SIGNATURE);
 
@@ -37,6 +39,7 @@ export function RightSidebar({
     { id: 'notes', label: 'Notes', count: notes.length },
     { id: 'discussions', label: 'Discussions', count: discussions.length },
     { id: 'signatures', label: 'Signatures', count: signatures.length },
+    { id: 'cosec-ai', label: 'Cosec AI', count: 0 },
   ];
 
   return (
@@ -69,8 +72,11 @@ export function RightSidebar({
           <NotesTab
             notes={notes}
             selectedAnnotationId={selectedAnnotationId}
+            userId={userId}
             onSelect={onAnnotationSelect}
             onDelete={onAnnotationDelete}
+            onShare={onShare}
+            documentName={documentName}
           />
         )}
         {activeTab === 'discussions' && (
@@ -90,6 +96,7 @@ export function RightSidebar({
             onDelete={onAnnotationDelete}
           />
         )}
+        {activeTab === 'cosec-ai' && <CosecAITab />}
       </div>
     </div>
   );

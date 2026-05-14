@@ -43,12 +43,12 @@ export class DocumentsService {
       finalMime = 'application/pdf';
     }
 
-    const key = `documents/${userId}/${crypto.randomUUID()}${path.extname(file.originalname).replace(/\.(txt|pptx)$/i, '.pdf')}`;
+    const key = `documents/${userId}/${crypto.randomUUID()}${path.extname(file.originalname).replace(/\.(txt|pptx|docx|doc)$/i, '.pdf')}`;
     await this.s3.upload(key, pdfBuffer, finalMime);
 
     const doc = await this.prisma.document.create({
       data: {
-        name: file.originalname.replace(/\.(txt|pptx)$/i, '.pdf'),
+        name: file.originalname.replace(/\.(txt|pptx|docx|doc)$/i, '.pdf'),
         s3Key: key,
         s3Url: `s3://${key}`,
         mimeType: finalMime,

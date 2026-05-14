@@ -160,16 +160,18 @@ doc.moveTo(72, doc.y + 2).lineTo(523, doc.y + 2).lineWidth(0.5).strokeColor(C.bo
 doc.y += 10;
 
 const toc = [
-  ['1', 'Project Architecture', '3'],
-  ['2', 'Technology Stack', '3'],
-  ['3', 'PDF Rendering Pipeline', '5'],
-  ['4', 'Text Layer & Text Selection', '6'],
-  ['5', 'Annotation System', '7'],
-  ['6', 'Real-Time Sync (Socket.IO)', '9'],
-  ['7', 'E-Signature System', '10'],
-  ['8', 'Authentication & Security', '11'],
-  ['9', 'Document Storage (AWS S3)', '12'],
-  ['10', 'Watermark Injection', '12'],
+  ['1',  'Project Architecture',               '3'],
+  ['2',  'Technology Stack',                   '3'],
+  ['3',  'PDF Rendering Pipeline',             '5'],
+  ['4',  'Text Layer & Text Selection',        '6'],
+  ['5',  'Annotation System',                  '7'],
+  ['6',  'Real-Time Sync (Socket.IO)',         '9'],
+  ['7',  'E-Signature System',                 '10'],
+  ['8',  'Authentication & Security',          '11'],
+  ['9',  'Document Storage (AWS S3)',          '12'],
+  ['10', 'Watermark Injection',                '12'],
+  ['11', 'Document Conversion Pipeline',       '13'],
+  ['12', 'Font Configuration & Rendering',     '14'],
 ];
 
 toc.forEach(([num, title, pg]) => {
@@ -231,9 +233,19 @@ techRow('Socket.IO',     'server 4.x','WebSocket gateway for broadcast events', 
 techRow('AWS SDK v3',    '@aws-sdk','S3 client — PutObject / GetObject (backend-only)', '#FF9900');
 techRow('pdf-lib',       '1.17',  'In-memory PDF manipulation for watermark injection', C.warn);
 techRow('@nestjs/throttler','5.x','Rate-limiting on auth endpoints (5 req/min)', C.accent);
+techRow('libreoffice-convert', '1.6', 'Converts PPTX / DOCX / DOC / TXT → PDF via LibreOffice CLI', C.accent);
+techRow('multer',        '1.4-lts','Multipart file upload middleware for NestJS', C.mid);
 techRow('xss',           '1.x',   'XSS sanitization for annotation content', '#EF4444');
 techRow('bcrypt',        '5.x',   'Refresh-token hashing before DB storage', C.mid);
 techRow('passport-jwt',  '4.x',   'JWT strategy — reads httpOnly cookie', C.secondary);
+doc.moveDown(0.4);
+
+h2('Runtime Fonts (Docker image)');
+doc.y += 4;
+techRow('font-noto-emoji',  'Alpine pkg', 'Google Noto Color Emoji — renders Unicode emoji in converted slides', C.warn);
+techRow('Carlito (TTF)',    'Google Fonts','Metrically identical to Microsoft Calibri — preserves text layout', C.secondary);
+techRow('font-dejavu',      'Alpine pkg', 'DejaVu family — fallback for Latin/Greek/Cyrillic', C.mid);
+techRow('ttf-freefont',     'Alpine pkg', 'FreeSans/FreeSerif/FreeMono — Arial / TNR / Courier substitutes', C.mid);
 doc.moveDown(0.6);
 
 // ─── PAGE 5: PDF Rendering ────────────────────────────────────────────────────
@@ -584,6 +596,177 @@ bullet([
   'Pure JavaScript — works on Windows, Linux, and macOS without additional system packages.',
   'In-memory operation — watermark is injected in the request handler with no temp files.',
 ]);
+
+// ─── PAGE 13: Document Conversion Pipeline ───────────────────────────────────
+newPage();
+h1('11. Document Conversion Pipeline');
+
+body(
+  'Prokoti accepts PDF, PPTX, DOCX, DOC, and TXT files. All non-PDF formats are converted to PDF ' +
+  'on the backend before being stored in S3. This means the viewer always works with a single ' +
+  'canonical format and never needs format-specific rendering code in the browser.'
+);
+
+h2('Supported Input Formats');
+
+const formats = [
+  ['PDF',  'application/pdf',          '%PDF (0x25 0x50 0x44 0x46)',   'Stored as-is — no conversion needed'],
+  ['PPTX', 'application/vnd...presentationml', 'ZIP (0x50 0x4B 0x03 0x04)', 'Converted → PDF via LibreOffice'],
+  ['DOCX', 'application/vnd...wordprocessingml','ZIP (0x50 0x4B 0x03 0x04)', 'Converted → PDF via LibreOffice'],
+  ['DOC',  'application/msword',       'OLE2 (0xD0 0xCF 0x11 0xE0)',   'Converted → PDF via LibreOffice'],
+  ['TXT',  'text/plain',               'None (any bytes accepted)',     'Converted → PDF via LibreOffice'],
+];
+
+formats.forEach(([ext, mime, magic, action]) => {
+  ensureSpace(26);
+  const ry = doc.y;
+  doc.rect(72, ry, 451, 22).fill(C.bg);
+  doc.fontSize(10).font('Helvetica-Bold').fillColor(C.primary).text(ext,   80, ry + 6, { lineBreak: false, width: 40 });
+  doc.fontSize(8).font('Helvetica').fillColor(C.light).text(magic,        126, ry + 7, { lineBreak: false, width: 160 });
+  doc.fontSize(9).font('Helvetica').fillColor(C.mid).text(action,         292, ry + 7, { lineBreak: false, width: 224 });
+  doc.y = ry + 26;
+});
+
+doc.moveDown(0.5);
+h2('Why libreoffice-convert?');
+bullet([
+  'LibreOffice has the most faithful PPTX/DOCX rendering of any open-source converter — it shares code with the desktop app.',
+  'The npm package libreoffice-convert wraps the LibreOffice headless CLI (soffice --convert-to pdf).',
+  'It accepts a Buffer in and returns a Buffer out — no temp files needed; fits naturally into the NestJS upload handler.',
+  'Alternatives evaluated: Pandoc (poor slide fidelity), Puppeteer+html (requires a headless browser, ~300 MB extra), CloudConvert (external SaaS, adds latency and cost).',
+  'LibreOffice is pre-installed in the Docker runner image via: apk add --no-cache libreoffice',
+]);
+
+h2('Two-Layer Validation: MIME Type + Magic Bytes');
+body(
+  'Accepting only the MIME type declared by the browser is insufficient — any file can be renamed. ' +
+  'The backend performs a second check by reading the first 4 bytes of the uploaded buffer and ' +
+  'comparing them against known file signatures.'
+);
+
+infoBox('Magic Byte Checks',
+  'PDF   : 25 50 44 46  (%PDF)\n' +
+  'PPTX/DOCX: 50 4B 03 04  (ZIP — both Office Open XML formats are ZIP archives)\n' +
+  'DOC   : D0 CF 11 E0  (OLE2 compound document — legacy Word format)\n' +
+  'TXT   : no check — plaintext has no fixed header; any byte sequence is accepted',
+  C.accent
+);
+
+h2('Conversion Code Path');
+
+const convSteps = [
+  'POST /documents/upload receives a multipart file via Multer (memory storage).',
+  'MaxFileSizeValidator rejects files over 50 MB.',
+  'ALLOWED_MIMETYPES check — rejects unknown types with 400 Bad Request.',
+  'validateFileMagicBytes() — checks buffer[0..3] against the expected signature.',
+  'If mimetype !== application/pdf: libreConvert.convertAsync(buffer, ".pdf") is awaited.',
+  'The resulting PDF Buffer is uploaded to S3 via PutObjectCommand.',
+  'A Document row is created in PostgreSQL with the .pdf extension and application/pdf MIME type.',
+];
+convSteps.forEach((step, i) => {
+  ensureSpace(20);
+  const sy = doc.y;
+  doc.rect(72, sy, 18, 16).fill(C.primary + '22');
+  doc.fontSize(8).font('Helvetica-Bold').fillColor(C.primary).text(String(i + 1), 78, sy + 4, { lineBreak: false });
+  doc.fontSize(9).font('Helvetica').fillColor(C.mid).text(step, 96, sy + 3, { width: 420, lineGap: 2 });
+  doc.y = sy + 22;
+});
+
+// ─── PAGE 14: Font Configuration ─────────────────────────────────────────────
+newPage();
+h1('12. Font Configuration & Rendering Quality');
+
+body(
+  'LibreOffice running headless on Alpine Linux has no fonts by default. Without fonts, every ' +
+  'glyph — including emoji icons commonly used in presentations — renders as a hollow box (tofu). ' +
+  'Four problems needed solving: emoji rendering, Calibri metric compatibility, common Microsoft ' +
+  'font substitution, and fontconfig wiring.'
+);
+
+h2('Problem 1 — Emoji / Icon Rendering');
+body(
+  'Modern PPTX slide decks use Unicode emoji (🎤 📅 ⏰) inside coloured circles as visual icons. ' +
+  'On a vanilla Alpine image these codepoints have no glyph and render as empty squares.'
+);
+infoBox('Fix: font-noto-emoji',
+  'apk add font-noto-emoji\n\n' +
+  'Installs NotoColorEmoji.ttf — Google\'s full-colour emoji font that covers all emoji in Unicode 15.\n' +
+  'LibreOffice picks it up automatically through fontconfig when it encounters an emoji codepoint.',
+  C.warn
+);
+
+h2('Problem 2 — Calibri Metric Compatibility');
+body(
+  'The default font in Microsoft Office 2007+ is Calibri. When Calibri is unavailable, LibreOffice ' +
+  'substitutes a different font with different character widths. This causes text to reflow — words ' +
+  'wrap at different points, font sizes appear different, and column layouts break.'
+);
+infoBox('Fix: Carlito (metric-compatible Calibri substitute)',
+  'Carlito is a Google Fonts typeface designed to be metrically identical to Calibri — every ' +
+  'character has the same advance width. Text laid out in Calibri in PowerPoint will wrap at ' +
+  'exactly the same points when rendered in Carlito by LibreOffice.\n\n' +
+  'Installed during Docker image build:\n' +
+  '  wget Carlito-{Regular,Bold,Italic,BoldItalic}.ttf → /usr/share/fonts/carlito/\n' +
+  '  fc-cache -f /usr/share/fonts   (rebuilds fontconfig cache)',
+  C.secondary
+);
+
+h2('Problem 3 — Microsoft Font Substitutions');
+body(
+  'Even after installing Carlito, other common Microsoft fonts (Arial, Times New Roman, Courier New, ' +
+  'Segoe UI) may be absent. LibreOffice\'s random fallback can pick fonts with very different metrics. ' +
+  'A fontconfig alias file pins each name to its closest free equivalent.'
+);
+
+const aliases = [
+  ['Calibri / Calibri Light', '→', 'Carlito',   'Metrically identical'],
+  ['Arial / Helvetica',       '→', 'FreeSans',   'Visually close; similar metrics'],
+  ['Times New Roman',         '→', 'FreeSerif',  'Serif family match'],
+  ['Courier New',             '→', 'FreeMono',   'Monospace family match'],
+  ['Segoe UI / Segoe UI Light/Semibold', '→', 'FreeSans', 'Microsoft UI font'],
+];
+
+aliases.forEach(([from, arrow, to, note]) => {
+  ensureSpace(22);
+  const ry = doc.y;
+  doc.rect(72, ry, 451, 20).fill(C.bg);
+  doc.fontSize(9).font('Helvetica-Bold').fillColor(C.dark).text(from,  80, ry + 5, { lineBreak: false, width: 180 });
+  doc.fontSize(9).font('Helvetica-Bold').fillColor(C.primary).text(arrow, 265, ry + 5, { lineBreak: false, width: 16 });
+  doc.fontSize(9).font('Helvetica-Bold').fillColor(C.accent).text(to,  286, ry + 5, { lineBreak: false, width: 100 });
+  doc.fontSize(8).font('Helvetica').fillColor(C.light).text(note,      390, ry + 6, { lineBreak: false, width: 130 });
+  doc.y = ry + 24;
+});
+
+doc.moveDown(0.5);
+infoBox('fontconfig alias file: /etc/fonts/conf.d/99-ms-font-aliases.conf',
+  '<?xml version="1.0"?>\n' +
+  '<!DOCTYPE fontconfig SYSTEM "fonts.dtd">\n' +
+  '<fontconfig>\n' +
+  '  <alias><family>Calibri</family><prefer><family>Carlito</family></prefer></alias>\n' +
+  '  <alias><family>Arial</family><prefer><family>FreeSans</family></prefer></alias>\n' +
+  '  <alias><family>Times New Roman</family><prefer><family>FreeSerif</family></prefer></alias>\n' +
+  '  ... (Courier New, Segoe UI variants)\n' +
+  '</fontconfig>',
+  C.primary
+);
+
+h2('Problem 4 — OpenSSL / Prisma Engine Mismatch');
+body(
+  'Alpine Linux 3.17+ ships OpenSSL 3 (libssl.so.3). The Prisma query engine binary generated ' +
+  'without an explicit binaryTargets defaults to "openssl-1.1.x" and fails to start in the container ' +
+  'with: Error loading shared library libssl.so.1.1.'
+);
+infoBox('Fix: binaryTargets in schema.prisma + openssl apk package',
+  '// prisma/schema.prisma\n' +
+  'generator client {\n' +
+  '  provider      = "prisma-client-js"\n' +
+  '  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]\n' +
+  '}\n\n' +
+  '// Dockerfile runner stage\n' +
+  'RUN apk add --no-cache libreoffice openssl ...\n\n' +
+  '"native" covers local Windows/macOS development; "linux-musl-openssl-3.0.x" targets Alpine with OpenSSL 3.',
+  '#EF4444'
+);
 
 // ─── Final: closing note ──────────────────────────────────────────────────────
 ensureSpace(120);

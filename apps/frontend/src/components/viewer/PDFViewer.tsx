@@ -101,12 +101,6 @@ export function PDFViewer({
     return () => { cancelled = true; };
   }, [documentUrl]);
 
-  // Clear rendered cache and trigger re-render when scale changes
-  useEffect(() => {
-    if (!pdfDocRef.current) return;
-    renderedPagesRef.current.clear();
-    setRenderKeys((prev) => [...prev]);
-  }, [scale]);
 
   // Scroll to current page when changed from toolbar/thumbnail/sidebar
   useEffect(() => {
@@ -142,10 +136,16 @@ export function PDFViewer({
 
   const renderPage = useCallback(
     async (pageNum: number, wrapperDiv: HTMLDivElement) => {
-      if (!pdfDocRef.current || !wrapperDiv) return;
-      if (renderedPagesRef.current.has(pageNum)) return;
+      if (!pdfDocRef.current || !pdfjs || !wrapperDiv) return;
+      const cached = renderedPagesRef.current.get(pageNum);
+      if (cached && cached.viewport.scale === scale) return;
 
-      const page = await pdfDocRef.current.getPage(pageNum);
+      const docSnapshot = pdfDocRef.current;
+      const page = await docSnapshot.getPage(pageNum);
+
+      // Guard: document changed or pdfjs was reset while we were awaiting
+      if (pdfDocRef.current !== docSnapshot || !pdfjs) return;
+
       const viewport = page.getViewport({ scale });
 
       wrapperDiv.innerHTML = '';

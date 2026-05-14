@@ -149,6 +149,7 @@ export default function ViewerPage() {
               annotations={annotations}
               userId={user.id}
               selectedAnnotationId={selectedAnnotationId}
+              documentName={document?.name}
               onAnnotationSelect={handleSidebarAnnotationSelect}
               onAnnotationUpdate={updateAnnotation}
               onAnnotationDelete={deleteAnnotation}

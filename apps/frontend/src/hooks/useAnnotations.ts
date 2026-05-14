@@ -32,7 +32,13 @@ export function useAnnotations(documentId: string, userId: string | undefined) {
     });
 
     socket.on('annotation:updated', ({ annotation }: { annotation: AnnotationDto }) => {
-      setAnnotations((prev) => prev.map((a) => a.id === annotation.id ? annotation : a));
+      setAnnotations((prev) => {
+        const exists = prev.some((a) => a.id === annotation.id);
+        if (exists) return prev.map((a) => a.id === annotation.id ? annotation : a);
+        // Wasn't in state (was private, now shared with this user) — add it
+        if (annotation.isPrivate) return prev;
+        return [annotation, ...prev];
+      });
     });
 
     socket.on('annotation:deleted', ({ annotationId }: { annotationId: string }) => {
@@ -99,7 +105,9 @@ export function useAnnotations(documentId: string, userId: string | undefined) {
   }, []);
 
   const shareAnnotation = useCallback(async (id: string, memberIds: string[]) => {
-    return api.post<AnnotationDto>(`/annotations/${id}/share`, { memberIds });
+    const updated = await api.post<AnnotationDto>(`/annotations/${id}/share`, { memberIds });
+    setAnnotations((prev) => prev.map((a) => (a.id === id ? updated : a)));
+    return updated;
   }, []);
 
   return {

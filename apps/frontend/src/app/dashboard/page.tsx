@@ -1,6 +1,5 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useDropzone } from 'react-dropzone';
 import toast from 'react-hot-toast';
@@ -14,10 +13,11 @@ const FILE_BADGE: Record<string, string> = {
   'application/pdf': 'PDF',
   'text/plain': 'TXT',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PPTX',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
+  'application/msword': 'DOC',
 };
 
 export default function DashboardPage() {
-  const router = useRouter();
   const { user, loading: authLoading, logout } = useAuth();
   const [documents, setDocuments] = useState<DocumentDto[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -57,6 +57,8 @@ export default function DashboardPage() {
       'application/pdf': ['.pdf'],
       'text/plain': ['.txt'],
       'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'application/msword': ['.doc'],
     },
     multiple: true,
   });
@@ -95,7 +97,7 @@ export default function DashboardPage() {
           <p className="text-slate-700 font-medium">
             {isDragActive ? 'Drop files here' : 'Drag & drop files, or click to select'}
           </p>
-          <p className="text-sm text-slate-400 mt-1">PDF, TXT, PPTX — max 50MB</p>
+          <p className="text-sm text-slate-400 mt-1">PDF, DOCX, DOC, PPTX, TXT — max 50MB</p>
         </div>
 
         {uploading && (

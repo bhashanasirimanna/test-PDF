@@ -111,11 +111,16 @@ export function AnnotationToolbar({ selection, onClose, onAnnotationCreate }: Pr
         className="p-2 rounded hover:bg-slate-700 text-white text-sm"
         title="Start discussion"
       >💬</button>
-      <button
+      {/* <button
         onClick={handleHighlight}
         className="p-2 rounded hover:bg-slate-700 text-white text-sm"
         title="Highlight"
-      >🖊</button>
+      >🖊</button> */}
+      <button
+        onClick={() => alert('Cosec AI not implemented yet')}
+        className="p-2 rounded hover:bg-slate-700 text-white text-sm"
+        title="Cosec AI"
+      >✨</button>
       <button
         onClick={handleUnderline}
         className="p-2 rounded hover:bg-slate-700 text-amber-400 text-sm underline"
