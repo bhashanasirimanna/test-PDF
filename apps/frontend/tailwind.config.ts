@@ -12,6 +12,16 @@ const config: Config = {
           600: '#4f46e5',
           700: '#4338ca',
         },
+        // Brand palette sourced from Figma design tokens
+        brand: {
+          purple: '#693b89',        // Brand Primary / Brand-purple
+          primary: '#551b8c',       // primary action buttons
+          'primary-hover': '#46176f',
+          light: '#e2d4ed',         // Primary-Purple-100 (tints, avatars)
+          tint: 'rgba(146,31,255,0.14)', // round add-button background
+          blue: '#2d9cdb',          // Brand Secondary / Brand-Sec-blue
+          cyan: '#00979d',          // Brand Secondary / Brand-Sec-Cyan
+        },
       },
       animation: {
         'pulse-once': 'pulse 0.3s ease-in-out',

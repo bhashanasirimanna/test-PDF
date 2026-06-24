@@ -5,7 +5,7 @@ let socket: Socket | null = null;
 
 export function getSocket(token?: string): Socket {
   if (!socket || !socket.connected) {
-    socket = io(process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001', {
+    socket = io(process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3005', {
       withCredentials: true,
       auth: token ? { token } : undefined,
       autoConnect: true,

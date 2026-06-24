@@ -56,7 +56,7 @@ export function ThumbnailSidebar({ documentUrl, currentPage, onPageClick }: Prop
           key={pageNum}
           onClick={() => onPageClick(pageNum)}
           className={`cursor-pointer rounded-lg overflow-hidden border-2 transition-colors ${
-            currentPage === pageNum ? 'border-indigo-500' : 'border-transparent hover:border-slate-300'
+            currentPage === pageNum ? 'border-brand-purple' : 'border-transparent hover:border-slate-300'
           }`}
         >
           <canvas

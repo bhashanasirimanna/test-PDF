@@ -138,11 +138,11 @@ function ResizableSignature({
 
       {isSelected && isOwner && (
         <>
-          <div className="absolute inset-0 border-2 border-indigo-500 rounded pointer-events-none" />
+          <div className="absolute inset-0 border-2 border-brand-purple rounded pointer-events-none" />
           {corners.map(({ key, style, cursor }) => (
             <div
               key={key}
-              className="absolute bg-white border-2 border-indigo-500 rounded-sm z-30"
+              className="absolute bg-white border-2 border-brand-purple rounded-sm z-30"
               style={{
                 width: HANDLE,
                 height: HANDLE,

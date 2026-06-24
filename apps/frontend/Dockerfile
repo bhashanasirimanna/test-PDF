@@ -8,6 +8,10 @@ COPY packages/types/package.json ./packages/types/
 RUN npm install
 
 FROM base AS builder
+ARG NEXT_PUBLIC_API_URL=http://localhost:3005
+ARG NEXT_PUBLIC_WS_URL=http://localhost:3005
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY apps/frontend ./apps/frontend
 COPY packages/types ./packages/types

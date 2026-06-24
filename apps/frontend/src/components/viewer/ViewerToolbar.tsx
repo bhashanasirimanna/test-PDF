@@ -1,139 +1,91 @@
-'use client';
-import Link from 'next/link';
-import { api } from '@/lib/api';
+"use client";
+import Link from "next/link";
+import { FileText, MoveLeft, BookOpen, Clock, BookOpenText, Menu } from "lucide-react";
 
 interface Props {
   documentName: string;
-  currentPage: number;
-  totalPages: number;
-  scale: number;
   leftOpen: boolean;
   rightOpen: boolean;
-  placingSignature: boolean;
-  documentId: string;
   userName: string;
-  onPageChange: (p: number) => void;
-  onScaleChange: (s: number) => void;
   onToggleLeft: () => void;
   onToggleRight: () => void;
-  onSignClick: () => void;
 }
 
 export function ViewerToolbar({
-  documentName, currentPage, totalPages, scale, leftOpen, rightOpen,
-  placingSignature, documentId, userName,
-  onPageChange, onScaleChange, onToggleLeft, onToggleRight, onSignClick,
+  documentName,
+  leftOpen,
+  rightOpen,
+  userName,
+  onToggleLeft,
+  onToggleRight,
 }: Props) {
-  const zoomLevels = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
-
-  function handleDownload() {
-    const a = document.createElement('a');
-    a.href = api.getDownloadUrl(documentId);
-    a.download = documentName;
-    a.click();
-  }
-
-  function handlePrint() {
-    window.open(api.getPrintUrl(documentId), '_blank');
-  }
-
   return (
-    <header className="h-12 bg-white border-b border-slate-200 flex items-center px-3 gap-2 shrink-0 z-10">
-      {/* Back */}
-      <Link href="/dashboard" className="text-slate-500 hover:text-slate-700 p-1 rounded" title="Back to dashboard">
-        ←
+    <header className="h-[70px] bg-[#0a0a0a] flex items-center px-[20px] py-[12px] gap-3 shrink-0 z-10">
+      {/* Back pill */}
+      <Link
+        href="/dashboard"
+        className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-white text-[16px] font-medium leading-5 transition-colors"
+        title="Back to dashboard"
+      >
+        <MoveLeft className="w-[25px] h-[25px]" />
+        Back
       </Link>
 
       {/* Toggle left sidebar */}
       <button
         onClick={onToggleLeft}
-        className={`p-1.5 rounded text-sm ${leftOpen ? 'bg-slate-100 text-slate-700' : 'text-slate-400'}`}
-        title="Toggle thumbnails"
+        className={`p-1.5 rounded text-sm transition-colors ${leftOpen ? "bg-white/15 text-white" : "text-white/40 hover:text-white/70"}`}
+        title="Toggle notes panel"
       >
-        ☰
+        <Menu className="w-[20px] h-[20px]" />
       </button>
 
-      <div className="w-px h-5 bg-slate-200 mx-1" />
+      <div className="w-px h-5 bg-white/15 mx-1" />
 
-      {/* Document name */}
-      <span className="text-sm font-medium text-slate-700 truncate max-w-[200px]">{documentName}</span>
+      {/* Breadcrumb / document title */}
+      <div className=" flex flex-col items-center gap-[2px]">
+        <div className="flex items-center gap-2 min-w-0">
+          <FileText className="w-5 h-5 text-white/50" />
+          <span className="text-[20px] font-semibold leading-6 text-white/50">
+            Paper :
+          </span>
+          <span className="text-[20px] font-semibold leading-6 text-white truncate max-w-[320px]">
+            {documentName}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className=" text-[14px] leading-[20px] font-medium text-[#F1F5F9]">Special Board Meeting :</span>
+          <span className=" text-[14px] leading-[20px] font-medium text-[#CBD5E1]">Fri, April 23 2026 | 11:30am - 02:30pm</span>
+        </div>
+      </div>
 
       <div className="flex-1" />
 
-      {/* Zoom controls */}
+      {/* Board pack / Minutes */}
       <button
-        onClick={() => onScaleChange(Math.max(0.5, scale - 0.25))}
-        className="p-1.5 rounded hover:bg-slate-100 text-slate-600 text-sm font-mono"
-        title="Zoom out"
-      >−</button>
-      <span className="text-xs text-slate-600 w-12 text-center">{Math.round(scale * 100)}%</span>
-      <button
-        onClick={() => onScaleChange(Math.min(3, scale + 0.25))}
-        className="p-1.5 rounded hover:bg-slate-100 text-slate-600 text-sm font-mono"
-        title="Zoom in"
-      >+</button>
-      {/* <button
-        onClick={() => onScaleChange(1.0)}
-        className="text-xs px-2 py-1 rounded hover:bg-slate-100 text-slate-500"
-        title="Fit to width"
-      >Fit</button> */}
-
-      <div className="w-px h-5 bg-slate-200 mx-1" />
-
-      {/* Page nav */}
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-          disabled={currentPage <= 1}
-          className="p-1.5 rounded hover:bg-slate-100 text-slate-600 disabled:opacity-30 text-sm"
-        >‹</button>
-        <input
-          type="number"
-          min={1}
-          max={totalPages || 1}
-          value={currentPage}
-          onChange={(e) => {
-            const p = parseInt(e.target.value, 10);
-            if (p >= 1 && p <= totalPages) onPageChange(p);
-          }}
-          className="w-10 text-center text-xs border border-slate-300 rounded py-0.5"
-        />
-        <span className="text-xs text-slate-400">/ {totalPages}</span>
-        <button
-          onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-          disabled={currentPage >= totalPages}
-          className="p-1.5 rounded hover:bg-slate-100 text-slate-600 disabled:opacity-30 text-sm"
-        >›</button>
-      </div>
-
-      <div className="w-px h-5 bg-slate-200 mx-1" />
-
-      {/* Signature */}
-      <button
-        onClick={onSignClick}
-        className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-          placingSignature ? 'bg-amber-100 text-amber-700' : 'hover:bg-slate-100 text-slate-500'
-        }`}
-        title={placingSignature ? 'Cancel signature placement' : 'Add signature'}
+        type="button"
+        className="flex items-center gap-[10px] h-[34px] px-[24px] py-[8px] rounded-[6px] border-[0.75px] border-white/25 text-white text-[14px] font-medium leading-[20px] hover:bg-white/10 transition-colors"
+        title="Board pack"
       >
-        ✏️ Sign
+        Board pack
+        <BookOpenText className="w-[16px] h-[16px]" />
       </button>
-
-      {/* Download / Print */}
-      <button onClick={handleDownload} className="px-2 py-1 rounded text-xs hover:bg-slate-100 text-slate-600" title="Download with watermark">
-        ⬇ Download
-      </button>
-      <button onClick={handlePrint} className="px-2 py-1 rounded text-xs hover:bg-slate-100 text-slate-600" title="Print with watermark">
-        🖨 Print
+      <button
+        type="button"
+        className="flex items-center gap-[10px] h-[34px] px-[24px] py-[8px] rounded-[6px] border-[0.75px] border-white/25 text-white text-[14px] font-medium leading-[20px] hover:bg-white/10 transition-colors"
+        title="Minutes"
+      >
+        Minutes
+        <Clock className="w-[16px] h-[16px]" />
       </button>
 
       {/* Toggle right sidebar */}
       <button
         onClick={onToggleRight}
-        className={`p-1.5 rounded text-sm ${rightOpen ? 'bg-slate-100 text-slate-700' : 'text-slate-400'}`}
-        title="Toggle annotations panel"
+        className={`p-1.5 rounded text-sm transition-colors ${rightOpen ? "bg-white/15 text-white" : "text-white/40 hover:text-white/70"}`}
+        title="Toggle AI chat"
       >
-        ≡
+        <Menu className="w-[20px] h-[20px]" />
       </button>
     </header>
   );

@@ -56,9 +56,9 @@ export class DocumentsController {
   }
 
   @Get(':id/stream')
-  async stream(@Param('id') id: string, @Res() res: Response) {
+  async stream(@Param('id') id: string, @CurrentUser() user: any, @Res() res: Response) {
     const doc = await this.docs.findOne(id);
-    const buffer = await this.docs.getWatermarkedBuffer(id, '');
+    const buffer = await this.docs.getWatermarkedBuffer(id, user.email);
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': 'inline',

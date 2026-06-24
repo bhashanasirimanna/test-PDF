@@ -49,11 +49,11 @@ export function SignatureOverlay({ pageNum, scale, onPlace }: Props) {
       {placing && (
         <div
           className="absolute inset-0 z-50 cursor-crosshair"
-          style={{ backgroundColor: 'rgba(99,102,241,0.08)' }}
+          style={{ backgroundColor: 'rgba(105,59,137,0.08)' }}
           onClick={handlePageClick}
           title="Click to place signature"
         >
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-xs px-3 py-1 rounded-full shadow">
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-brand-primary text-white text-xs px-3 py-1 rounded-full shadow">
             Click to place signature
           </div>
         </div>

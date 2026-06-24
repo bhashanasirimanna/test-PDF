@@ -42,10 +42,10 @@ export function DiscussionsTab({ discussions, userId, selectedAnnotationId, onSe
       {discussions.map((d) => (
         <div
           key={d.id}
-          className={`rounded-lg border cursor-pointer transition-all ${
+          className={`rounded border cursor-pointer transition-all ${
             selectedAnnotationId === d.id || expanded === d.id
-              ? 'border-indigo-300 bg-indigo-50'
-              : 'border-slate-200 hover:border-slate-300'
+              ? 'border-brand-purple/50 bg-brand-light/30'
+              : 'border-slate-300 hover:border-slate-400'
           }`}
         >
           <div
@@ -55,22 +55,26 @@ export function DiscussionsTab({ discussions, userId, selectedAnnotationId, onSe
               setExpanded((prev) => (prev === d.id ? null : d.id));
             }}
           >
+            <p className="text-[14px] font-medium text-neutral-950 leading-tight line-clamp-2">{d.content}</p>
             {d.selectedText && (
-              <p className="text-xs italic text-slate-500 line-clamp-1 mb-1.5">
-                "{d.selectedText.slice(0, 60)}..."
+              <p className="flex items-start gap-1.5 text-[12px] text-neutral-600 leading-4 line-clamp-2 mt-1.5 bg-[#e2efff] rounded p-1.5">
+                <svg className="w-3 h-3 shrink-0 mt-0.5 text-neutral-500" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2">
+                  <path d="M5 7a2 2 0 002.8 0l1.7-1.7a2 2 0 10-2.8-2.8L6 3" />
+                  <path d="M7 5a2 2 0 00-2.8 0L2.5 6.7a2 2 0 102.8 2.8L6 9" />
+                </svg>
+                {d.selectedText.slice(0, 80)}{d.selectedText.length > 80 ? '…' : ''}
               </p>
             )}
-            <p className="text-xs text-slate-700 line-clamp-2">{d.content}</p>
             <div className="flex items-center gap-2 mt-2">
               <div className="flex -space-x-1">
                 {d.members?.slice(0, 3).map((m) => (
                   <Avatar key={m.id} name={m.name} url={m.avatarUrl} size={18} />
                 ))}
               </div>
-              <span className="text-xs text-slate-400">
+              <span className="flex items-center gap-1 text-[12px] text-neutral-500">
                 {(d.replies?.length || 0)} replies · p.{d.pageNumber}
               </span>
-              <span className="text-xs text-slate-400 ml-auto">
+              <span className="text-[10px] text-neutral-400 ml-auto">
                 {formatDistanceToNow(new Date(d.createdAt), { addSuffix: true })}
               </span>
             </div>

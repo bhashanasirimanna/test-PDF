@@ -299,7 +299,7 @@ export function PDFViewer({
   if (renderKeys.length === 0) {
     return (
       <div className="flex items-center justify-center h-full gap-3 text-slate-400">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary" />
         <span className="text-sm">Loading PDF…</span>
       </div>
     );
@@ -309,7 +309,7 @@ export function PDFViewer({
     <div ref={containerRef} className="flex flex-col items-center gap-4 py-6 px-4 relative">
       {pendingSignature && (
         <div className="sticky top-2 z-50 pointer-events-none">
-          <div className="bg-indigo-600 text-white text-xs px-4 py-1.5 rounded-full shadow-lg inline-block">
+          <div className="bg-brand-primary text-white text-xs px-4 py-1.5 rounded-full shadow-lg inline-block">
             Click on the page to place your signature — press Esc to cancel
           </div>
         </div>

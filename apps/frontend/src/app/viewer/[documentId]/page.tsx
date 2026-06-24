@@ -6,9 +6,11 @@ import { useAnnotations } from '@/hooks/useAnnotations';
 import { api } from '@/lib/api';
 import type { DocumentDto } from '@prokoti/types';
 import { PDFViewer } from '@/components/viewer/PDFViewer';
-import { RightSidebar } from '@/components/viewer/RightSidebar';
-import { ThumbnailSidebar } from '@/components/viewer/ThumbnailSidebar';
+import { LeftSidebar } from '@/components/viewer/LeftSidebar';
+import { CosecAITab } from '@/components/viewer/CosecAITab';
 import { ViewerToolbar } from '@/components/viewer/ViewerToolbar';
+import { DocumentToolbar } from '@/components/viewer/DocumentToolbar';
+import { PageZoomBar } from '@/components/viewer/PageZoomBar';
 import { SignaturePickerModal } from '@/components/viewer/SignaturePickerModal';
 
 export default function ViewerPage() {
@@ -75,52 +77,60 @@ export default function ViewerPage() {
   }, []);
 
   if (authLoading || !user) {
-    return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>;
+    return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary" /></div>;
   }
 
   return (
     <div className="flex flex-col h-screen bg-slate-100 overflow-hidden">
       <ViewerToolbar
         documentName={document?.name || ''}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        scale={scale}
         leftOpen={leftOpen}
         rightOpen={rightOpen}
-        placingSignature={!!pendingSignature}
-        documentId={documentId}
-        onPageChange={setCurrentPage}
-        onScaleChange={setScale}
         onToggleLeft={() => setLeftOpen((v) => !v)}
         onToggleRight={() => setRightOpen((v) => !v)}
-        onSignClick={() => {
-          if (pendingSignature) {
-            setPendingSignature(null);
-          } else {
-            setShowSignaturePicker(true);
-          }
-        }}
         userName={user.name}
       />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left thumbnail sidebar */}
+        {/* Left annotation sidebar: Pages / Notes / Discussions / Signatures */}
         <div
           className={`transition-all duration-150 overflow-hidden bg-white border-r border-slate-200 ${
-            leftOpen ? 'w-[200px]' : 'w-0'
+            leftOpen ? 'w-[340px]' : 'w-0'
           }`}
         >
           {leftOpen && (
-            <ThumbnailSidebar
+            <LeftSidebar
+              annotations={annotations}
+              userId={user.id}
+              selectedAnnotationId={selectedAnnotationId}
+              documentName={document?.name}
               documentUrl={api.getDocumentUrl(documentId)}
               currentPage={currentPage}
               onPageClick={setCurrentPage}
+              onAnnotationSelect={handleSidebarAnnotationSelect}
+              onAnnotationUpdate={updateAnnotation}
+              onAnnotationDelete={deleteAnnotation}
+              onReply={addReply}
+              onShare={shareAnnotation}
             />
           )}
         </div>
 
-        {/* PDF canvas area */}
-        <div className="flex-1 overflow-auto">
+        {/* PDF canvas area with sub-toolbar + floating page/zoom bar */}
+        <div id="pdf-preview" className="flex-1 flex flex-col overflow-hidden relative bg-slate-100">
+          <DocumentToolbar
+            documentId={documentId}
+            documentName={document?.name || ''}
+            placingSignature={!!pendingSignature}
+            onSignClick={() => {
+              if (pendingSignature) {
+                setPendingSignature(null);
+              } else {
+                setShowSignaturePicker(true);
+              }
+            }}
+          />
+          <div className="flex-1 overflow-auto">
           <PDFViewer
             documentUrl={api.getDocumentUrl(documentId)}
             currentPage={currentPage}
@@ -136,27 +146,23 @@ export default function ViewerPage() {
             onAnnotationSelect={setSelectedAnnotationId}
             onSignaturePlaced={() => setPendingSignature(null)}
           />
+          </div>
+          <PageZoomBar
+            currentPage={currentPage}
+            totalPages={totalPages}
+            scale={scale}
+            onPageChange={setCurrentPage}
+            onScaleChange={setScale}
+          />
         </div>
 
-        {/* Right annotation sidebar */}
+        {/* Right AI chat sidebar */}
         <div
           className={`transition-all duration-150 overflow-hidden bg-white border-l border-slate-200 ${
             rightOpen ? 'w-[320px]' : 'w-0'
           }`}
         >
-          {rightOpen && (
-            <RightSidebar
-              annotations={annotations}
-              userId={user.id}
-              selectedAnnotationId={selectedAnnotationId}
-              documentName={document?.name}
-              onAnnotationSelect={handleSidebarAnnotationSelect}
-              onAnnotationUpdate={updateAnnotation}
-              onAnnotationDelete={deleteAnnotation}
-              onReply={addReply}
-              onShare={shareAnnotation}
-            />
-          )}
+          {rightOpen && <CosecAITab />}
         </div>
       </div>
 
